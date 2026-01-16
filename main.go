@@ -1,12 +1,12 @@
 package main
 
 import (
-	"ToDoList/task"
+	"ToDoList/todo"
 	"net/http"
 	"time"
 )
 
-var thingsToDo = make([string]task.Task, 0)
+var thingsToDo = make([string]todo.Task, 0)
 
 func CreateTask(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "GET" {

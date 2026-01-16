@@ -1,4 +1,4 @@
-package task
+package todo
 
 type List struct {
 	Tasks map[string]Task
@@ -17,6 +17,14 @@ func (list *List) AddTask(task Task) error {
 
 	list.Tasks[task.Title] = task
 	return nil
+}
+
+func (list *List) GetTask(title string) (Task, error) {
+	task, ok := list.Tasks[title]
+	if !ok {
+		return Task{}, ErrTaskNotFound
+	}
+	return task, nil
 }
 
 func (list *List) GetTasks() map[string]Task {
@@ -46,6 +54,18 @@ func (list *List) CompleteTask(title string) error {
 		return ErrTaskNotFound
 	}
 	task.Complete()
+
+	list.Tasks[task.Title] = task
+
+	return nil
+}
+
+func (list *List) UncompleteTask(title string) error {
+	task, ok := list.Tasks[title]
+	if !ok {
+		return ErrTaskNotFound
+	}
+	task.Uncomplete()
 
 	list.Tasks[task.Title] = task
 

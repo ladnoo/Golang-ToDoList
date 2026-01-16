@@ -1,13 +1,14 @@
-package task
+package todo
 
 import "time"
 
 type Task struct {
-	Title        string
-	Description  string
-	Completed    bool
-	CreateData   time.Time
-	CompleteData *time.Time
+	Title           string
+	Description     string
+	Completed       bool
+	CreateData      time.Time
+	CompleteData    *time.Time
+	ErrTaskNotFound error
 }
 
 func NewTask(title, description string) Task {
@@ -25,4 +26,9 @@ func (task Task) Complete() {
 
 	task.Completed = true
 	task.CompleteData = &finishData
+}
+
+func (task Task) Uncomplete() {
+	task.Completed = false
+	task.CompleteData = nil
 }
