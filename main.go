@@ -1,15 +1,17 @@
 package main
 
 import (
-	"ToDoList/httpserver"
+	transport2 "ToDoList/internal/transport"
 	"ToDoList/todo"
 	"fmt"
 )
 
 func main() {
+
+	// replace "todoList" with db
 	todoList := todo.NewList()
-	httpHandlers := httpserver.NewHTTPHandlers(todoList)
-	httpServer := httpserver.NewServer(httpHandlers)
+	httpHandlers := transport2.NewHTTPHandlers(todoList)
+	httpServer := transport2.NewServer(httpHandlers)
 
 	if err := httpServer.StartServer(); err != nil {
 		fmt.Println("Failed to start HTTP server:", err)
