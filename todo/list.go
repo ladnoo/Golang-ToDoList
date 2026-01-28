@@ -1,26 +1,37 @@
 package todo
 
+import (
+	"sync"
+)
+
 type List struct {
-	Tasks map[string]Task
+	tasks map[string]Task
+	mtx   sync.RWMutex
 }
 
 func NewList() *List {
 	return &List{
-		Tasks: make(map[string]Task),
+		tasks: make(map[string]Task),
 	}
 }
 
 func (list *List) AddTask(task Task) error {
-	if _, ok := list.Tasks[task.Title]; ok {
+	list.mtx.Lock()
+	defer list.mtx.Unlock()
+
+	if _, ok := list.tasks[task.Title]; ok {
+
 		return ErrTaskAlreadyExists
 	}
 
-	list.Tasks[task.Title] = task
+	list.tasks[task.Title] = task
 	return nil
 }
 
 func (list *List) GetTask(title string) (Task, error) {
-	task, ok := list.Tasks[title]
+	list.mtx.RLock()
+	defer list.mtx.RUnlock()
+	task, ok := list.tasks[title]
 	if !ok {
 		return Task{}, ErrTaskNotFound
 	}
@@ -28,19 +39,24 @@ func (list *List) GetTask(title string) (Task, error) {
 }
 
 func (list *List) GetTasks() map[string]Task {
-	template := make(map[string]Task, len(list.Tasks))
+	list.mtx.RLock()
+	defer list.mtx.RUnlock()
+	template := make(map[string]Task, len(list.tasks))
 
-	for title, task := range list.Tasks {
+	for title, task := range list.tasks {
 		template[title] = task
 	}
 
 	return template
 }
 
-func (list *List) GetNotCompletedTasks() map[string]Task {
+func (list *List) GetUncompletedTasks() map[string]Task {
+	list.mtx.RLock()
+	defer list.mtx.RUnlock()
+
 	template := make(map[string]Task)
-	for title, task := range list.Tasks {
-		if task.Completed {
+	for title, task := range list.tasks {
+		if task.Completed == false {
 			template[title] = task
 		}
 	}
@@ -48,36 +64,45 @@ func (list *List) GetNotCompletedTasks() map[string]Task {
 	return template
 }
 
-func (list *List) CompleteTask(title string) error {
-	task, ok := list.Tasks[title]
+func (list *List) CompleteTask(title string) (Task, error) {
+	list.mtx.Lock()
+	defer list.mtx.Unlock()
+
+	task, ok := list.tasks[title]
 	if !ok {
-		return ErrTaskNotFound
+		return Task{}, ErrTaskNotFound
 	}
 	task.Complete()
 
-	list.Tasks[task.Title] = task
+	list.tasks[task.Title] = task
 
-	return nil
+	return list.tasks[title], nil
 }
 
-func (list *List) UncompleteTask(title string) error {
-	task, ok := list.Tasks[title]
+func (list *List) UncompleteTask(title string) (Task, error) {
+	list.mtx.Lock()
+	defer list.mtx.Unlock()
+
+	task, ok := list.tasks[title]
 	if !ok {
-		return ErrTaskNotFound
+		return Task{}, ErrTaskNotFound
 	}
 	task.Uncomplete()
 
-	list.Tasks[task.Title] = task
+	list.tasks[task.Title] = task
 
-	return nil
+	return list.tasks[title], nil
 }
 
 func (list *List) DeleteTask(title string) error {
-	_, ok := list.Tasks[title]
+	list.mtx.Lock()
+	defer list.mtx.Unlock()
+
+	_, ok := list.tasks[title]
 	if !ok {
 		return ErrTaskNotFound
 	}
 
-	delete(list.Tasks, title)
+	delete(list.tasks, title)
 	return nil
 }

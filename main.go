@@ -1,20 +1,17 @@
 package main
 
 import (
+	"ToDoList/httpserver"
 	"ToDoList/todo"
-	"net/http"
-	"time"
+	"fmt"
 )
 
-var thingsToDo = make([string]todo.Task, 0)
-
-func CreateTask(w http.ResponseWriter, r *http.Request) {
-	if r.Method == "GET" {
-
-	}
-
-}
-
 func main() {
-	http.HandleFunc("/tasks", func(w http.ResponseWriter, r *http.Request) {})
+	todoList := todo.NewList()
+	httpHandlers := httpserver.NewHTTPHandlers(todoList)
+	httpServer := httpserver.NewServer(httpHandlers)
+
+	if err := httpServer.StartServer(); err != nil {
+		fmt.Println("Failed to start HTTP server:", err)
+	}
 }

@@ -1,4 +1,4 @@
-package http
+package httpserver
 
 import (
 	"ToDoList/todo"
@@ -16,6 +16,24 @@ type HTTPHandlers struct {
 func NewHTTPHandlers(list *todo.List) *HTTPHandlers {
 	return &HTTPHandlers{
 		list,
+	}
+}
+
+func handleErrorNotFound(err error, w http.ResponseWriter) {
+	errDTO := NewErrorDTO(err)
+	if errors.Is(err, todo.ErrTaskNotFound) {
+		http.Error(w, errDTO.ToString(), http.StatusNotFound)
+	} else {
+		http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
+	}
+}
+
+func handleErrorConflict(err error, w http.ResponseWriter) {
+	errDTO := NewErrorDTO(err)
+	if errors.Is(err, todo.ErrTaskAlreadyExists) {
+		http.Error(w, errDTO.ToString(), http.StatusConflict)
+	} else {
+		http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
 	}
 }
 
@@ -43,16 +61,12 @@ func (h *HTTPHandlers) HandleCreateTask(w http.ResponseWriter, r *http.Request) 
 	if err := taskDTO.ValidateToCreate(); err != nil {
 		errDTO := NewErrorDTO(err)
 		http.Error(w, errDTO.ToString(), http.StatusBadRequest)
+		return
 	}
 
 	toDoTask := todo.NewTask(taskDTO.Title, taskDTO.Description)
 	if err := h.toDoList.AddTask(toDoTask); err != nil {
-		errDTO := NewErrorDTO(err)
-		if errors.Is(err, todo.ErrTaskAlreadyExists) {
-			http.Error(w, errDTO.ToString(), http.StatusConflict)
-		} else {
-			http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
-		}
+		handleErrorConflict(err, w)
 		return
 	}
 
@@ -86,12 +100,7 @@ func (h *HTTPHandlers) HandleGetTask(w http.ResponseWriter, r *http.Request) {
 
 	task, err := h.toDoList.GetTask(title)
 	if err != nil {
-		errDTO := NewErrorDTO(err)
-		if errors.Is(err, todo.ErrTaskNotFound) {
-			http.Error(w, errDTO.ToString(), http.StatusNotFound)
-		} else {
-			http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
-		}
+		handleErrorNotFound(err, w)
 		return
 	}
 
@@ -149,7 +158,7 @@ func (h *HTTPHandlers) HandleGetAllTasks(w http.ResponseWriter, r *http.Request)
 */
 
 func (h *HTTPHandlers) HandleGetUncompletedTasks(w http.ResponseWriter, r *http.Request) {
-	tasks := h.toDoList.GetNotCompletedTasks()
+	tasks := h.toDoList.GetUncompletedTasks()
 
 	b, err := json.MarshalIndent(tasks, "", "	")
 	if err != nil {
@@ -185,28 +194,31 @@ func (h *HTTPHandlers) HandleCompleteTask(w http.ResponseWriter, r *http.Request
 
 	title := mux.Vars(r)["title"]
 
+	var (
+		changedTask todo.Task
+		err         error
+	)
+
 	if completeDTO.Complete {
-		err := h.toDoList.CompleteTask(title)
-		if err != nil {
-			errDTO := NewErrorDTO(err)
-			if errors.Is(err, todo.ErrTaskNotFound) {
-				http.Error(w, errDTO.ToString(), http.StatusNotFound)
-			} else {
-				http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
-			}
-
-		}
+		changedTask, err = h.toDoList.CompleteTask(title)
 	} else {
-		err := h.toDoList.UncompleteTask(title)
-		if err != nil {
-			errDTO := NewErrorDTO(err)
-			if errors.Is(err, todo.ErrTaskNotFound) {
-				http.Error(w, errDTO.ToString(), http.StatusNotFound)
-			} else {
-				http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
-			}
+		changedTask, err = h.toDoList.UncompleteTask(title)
+	}
 
-		}
+	if err != nil {
+		handleErrorNotFound(err, w)
+		return
+	}
+
+	b, err := json.MarshalIndent(changedTask, "", "	")
+	if err != nil {
+		panic(err)
+	}
+
+	w.WriteHeader(http.StatusOK)
+	if _, err := w.Write(b); err != nil {
+		fmt.Println("Failed to write HTTP response: ", err)
+		return
 	}
 }
 
@@ -227,12 +239,7 @@ func (h *HTTPHandlers) HandleDeleteTask(w http.ResponseWriter, r *http.Request) 
 	title := mux.Vars(r)["title"]
 
 	if err := h.toDoList.DeleteTask(title); err != nil {
-		errDTO := NewErrorDTO(err)
-		if errors.Is(err, todo.ErrTaskNotFound) {
-			http.Error(w, errDTO.ToString(), http.StatusNotFound)
-		} else {
-			http.Error(w, errDTO.ToString(), http.StatusInternalServerError)
-		}
+		handleErrorNotFound(err, w)
 		return
 	}
 

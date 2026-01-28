@@ -1,4 +1,4 @@
-package http
+package httpserver
 
 import (
 	"encoding/json"
@@ -24,7 +24,7 @@ func (task *TaskDTO) ValidateToCreate() error {
 }
 
 type CompleteTaskDTO struct {
-	Complete bool `json:"completed"`
+	Complete bool
 }
 
 type ErrorDTO struct {
